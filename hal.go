@@ -12,7 +12,7 @@ import (
 type Curie struct {
 	Name      string `json:"name"`
 	Href      string `json:"href"`
-	Templated *bool  `json:"templated,omitempty"`
+	Templated bool   `json:"templated"`
 }
 
 // Link represents a link
@@ -65,7 +65,7 @@ type Links struct {
 	Self   *Link    `json:"-"`
 	Curies *[]Curie `json:"curies,omitempty"`
 	// When serializing to JSON we need to handle this specially
-	Relations map[string][]Link
+	Relations map[string][]*Link
 }
 
 // MarshalJSON to marshal Links properly
@@ -79,6 +79,18 @@ func (l *Links) MarshalJSON() ([]byte, error) {
 			return nil, err
 		}
 		buffer.WriteString(fmt.Sprintf("\"self\": %s", string(jsonValue)))
+	}
+	if l.Curies != nil {
+		if !firstrun {
+			buffer.WriteString(",")
+		} else {
+			firstrun = false
+		}
+		jsonValue, err := json.Marshal(l.Curies)
+		if err != nil {
+			return nil, err
+		}
+		buffer.WriteString(fmt.Sprintf("\"curies\": %s", string(jsonValue)))
 	}
 	for key, links := range l.Relations {
 		if !firstrun {
@@ -150,10 +162,10 @@ func (r *Resource) Self(uri string) error {
 }
 
 // AddLink adds a link to reltype
-func (r *Resource) AddLink(reltype string, link Link) error {
+func (r *Resource) AddLink(reltype string, link *Link) error {
 	link.Name = &reltype
 	if _, ok := r.Links.Relations[reltype]; !ok {
-		r.Links.Relations[reltype] = []Link{}
+		r.Links.Relations[reltype] = []*Link{}
 	}
 	r.Links.Relations[reltype] = append(r.Links.Relations[reltype], link)
 	return nil
@@ -169,7 +181,12 @@ func (r *Resource) AddEmbed(reltype string, embed *Resource) error {
 }
 
 // AddCurie adds a curie to the links
-func (r *Resource) AddCurie(curie Curie) error {
+func (r *Resource) AddCurie(curie *Curie) error {
+	log.Println(r.Links.Curies)
+	if r.Links.Curies == nil {
+		r.Links.Curies = &[]Curie{}
+	}
+	*r.Links.Curies = append(*r.Links.Curies, *curie)
 	return nil
 }
 
@@ -210,7 +227,7 @@ func NewResource() *Resource {
 // NewLinks creates and initializes Links
 func NewLinks() *Links {
 	l := &Links{}
-	l.Relations = make(map[string][]Link)
+	l.Relations = make(map[string][]*Link)
 	return l
 }
 
