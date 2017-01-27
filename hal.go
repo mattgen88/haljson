@@ -2,107 +2,137 @@ package haljson
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
-	"strings"
+	"log"
 )
 
+// Curie respresents a curie
 type Curie struct {
 	Name      string `json:"name"`
 	Href      string `json:"href"`
 	Templated *bool  `json:"templated,omitempty"`
 }
 
+// Link represents a link
 type Link struct {
 	// If curied, special key nameing must be done
-	Curried    *bool   `json:"-"`
-	CurrieName *string `json:"-"`
+	Curried    *bool
+	CurrieName *string
 	// When serializing to JSON we need to handle this specially
+	Deprecation *string
+	Href        string
+	HrefLang    *string
+	Name        *string
+	Profile     *string
+	Title       *string
+	Type        *string
+}
+
+type realLink struct {
 	Deprecation *string `json:"deprecation,omitempty"`
 	Href        string  `json:"href,omitempty"`
 	HrefLang    *string `json:"hreflang,omitempty"`
-	Name        *string `json:"name,omitempty"`
 	Profile     *string `json:"profile,omitempty"`
 	Title       *string `json:"title,omitempty"`
 	Type        *string `json:"type,omitempty"`
 }
 
+// MarshalJSON is used to marshal Link properly
 func (l *Link) MarshalJSON() ([]byte, error) {
-	// if Curried = true, then prefix Name with CurrieName:
-	r := reflect.ValueOf(l)
-
-	name := ""
-	if l.Curried != nil && *l.Curried {
-		name = fmt.Sprint(l.CurrieName, ":", l.Name)
+	b, err := json.Marshal(realLink{
+		Deprecation: l.Deprecation,
+		Href:        l.Href,
+		HrefLang:    l.HrefLang,
+		Profile:     l.Profile,
+		Title:       l.Title,
+		Type:        l.Type,
+	})
+	if err != nil {
+		return nil, err
 	}
-	buffer := bytes.NewBufferString("{")
-	for idx, field := range []string{"Deprecation", "Href", "HrefLang", "Name", "Profile", "Title", "Type"} {
-		if !reflect.Indirect(r).FieldByName(field).IsNil() {
-			if idx != 0 {
-				buffer.WriteString(",")
-			}
-			if field == "Name" {
-				buffer.WriteString(fmt.Sprintf("\"%s\":\"%s\"", strings.ToLower(field), name))
-			} else {
-				buffer.WriteString(fmt.Sprintf("\"%s\":\"%s\"", strings.ToLower(field), reflect.Indirect(r).FieldByName(field).String()))
-			}
-		}
-	}
-	buffer.WriteString("")
-	buffer.WriteString("}")
-	return buffer.Bytes(), nil
+	return b, nil
 }
 
+// UnmarshalJSON is used to unmarshal Link properly
 func (l *Link) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// Links is a container of Link, mapped by relation, and contains Curies
 type Links struct {
+	Self   *Link    `json:"-"`
 	Curies *[]Curie `json:"curies,omitempty"`
 	// When serializing to JSON we need to handle this specially
 	Relations map[string][]Link
 }
 
+// MarshalJSON to marshal Links properly
 func (l *Links) MarshalJSON() ([]byte, error) {
-	return nil, nil
+	buffer := bytes.NewBufferString("{")
+	firstrun := true
+	if l.Self != nil {
+		firstrun = false
+		jsonValue, err := json.Marshal(l.Self)
+		if err != nil {
+			return nil, err
+		}
+		buffer.WriteString(fmt.Sprintf("\"self\": %s", string(jsonValue)))
+	}
+	for key, links := range l.Relations {
+		if !firstrun {
+			buffer.WriteString(",")
+		} else {
+			firstrun = false
+		}
+		jsonValue, err := json.Marshal(links)
+		if err != nil {
+			return nil, err
+		}
+		buffer.WriteString(fmt.Sprintf("\"%s\": %s", key, string(jsonValue)))
+	}
+	buffer.WriteString("}")
+	return buffer.Bytes(), nil
 }
+
+// UnmarshalJSON to unmarshal links
 func (l *Links) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (l *Links) AddLink(reltype string, link Link) error {
-	if _, ok := l.Relations[reltype]; !ok {
-		l.Relations[reltype] = []Link{}
-	}
-	l.Relations[reltype] = append(l.Relations[reltype], link)
-	return nil
-}
-
-func (l *Links) AddCurie(curie Curie) error {
-	return nil
-}
-
+// Embeds holds embedded relations by reltype
 type Embeds struct {
 	Relations map[string][]Resource
 }
 
+// MarshalJSON marshals embeds
 func (e *Embeds) MarshalJSON() ([]byte, error) {
-	return nil, nil
+	buffer := bytes.NewBufferString("{")
+	firstrun := true
+	for key, links := range e.Relations {
+		if !firstrun {
+			buffer.WriteString(",")
+		} else {
+			firstrun = false
+		}
+		jsonValue, err := json.Marshal(links)
+		if err != nil {
+			return nil, err
+		}
+		buffer.WriteString(fmt.Sprintf("\"%s\": %s", key, string(jsonValue)))
+	}
+	buffer.WriteString("}")
+	log.Println(buffer)
+	return buffer.Bytes(), nil
 }
 
+// UnmarshalJSON unmarshals embeds
 func (e *Embeds) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (e *Embeds) AddResource(reltype string, r Resource) error {
-	if _, ok := e.Relations[reltype]; !ok {
-		e.Relations[reltype] = []Resource{}
-	}
-	e.Relations[reltype] = append(e.Relations[reltype], r)
-	return nil
-}
-
+// Resource represents a Resource with Links and Embeds with Data
 type Resource struct {
 	Links  *Links  `json:"_links,omitempty"`
 	Embeds *Embeds `json:"_embedded,omitempty"`
@@ -110,27 +140,81 @@ type Resource struct {
 	Data map[string]interface{}
 }
 
+// Self is used to add a self link
 func (r *Resource) Self(uri string) error {
-	if _, ok := r.Links.Relations["self"]; ok {
+	if r.Links.Self != nil {
 		return errors.New("Self relation already exists!")
 	}
-	r.Links.AddLink("self", Link{Href: uri})
+	r.Links.Self = &Link{Href: uri}
 	return nil
 }
 
+// AddLink adds a link to reltype
+func (r *Resource) AddLink(reltype string, link Link) error {
+	link.Name = &reltype
+	if _, ok := r.Links.Relations[reltype]; !ok {
+		r.Links.Relations[reltype] = []Link{}
+	}
+	r.Links.Relations[reltype] = append(r.Links.Relations[reltype], link)
+	return nil
+}
+
+// AddEmbed adds a Resource by reltype
+func (r *Resource) AddEmbed(reltype string, embed *Resource) error {
+	if _, ok := r.Embeds.Relations[reltype]; !ok {
+		r.Embeds.Relations[reltype] = []Resource{}
+	}
+	r.Embeds.Relations[reltype] = append(r.Embeds.Relations[reltype], *embed)
+	return nil
+}
+
+// AddCurie adds a curie to the links
+func (r *Resource) AddCurie(curie Curie) error {
+	return nil
+}
+
+// MarshalJSON marshals a resource properly
+func (r *Resource) MarshalJSON() ([]byte, error) {
+	var obj map[string]interface{}
+	obj = make(map[string]interface{})
+	for key, val := range r.Data {
+		obj[key] = val
+	}
+	if r.Links != nil && len(r.Links.Relations) > 0 {
+		obj["_links"] = r.Links
+	}
+	if r.Embeds != nil && len(r.Embeds.Relations) > 0 {
+		obj["_embedded"] = r.Embeds
+	}
+	b, err := json.Marshal(obj)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+// UnmarshalJSON unmarshals embeds
+func (r *Resource) UnmarshalJSON(b []byte) error {
+	return nil
+}
+
+// NewResource creates a Resource and initializes it
 func NewResource() *Resource {
 	r := &Resource{}
+	r.Data = make(map[string]interface{})
 	r.Links = NewLinks()
 	r.Embeds = NewEmbeds()
 	return r
 }
 
+// NewLinks creates and initializes Links
 func NewLinks() *Links {
 	l := &Links{}
 	l.Relations = make(map[string][]Link)
 	return l
 }
 
+// NewEmbeds creates and initializes Embeds
 func NewEmbeds() *Embeds {
 	e := &Embeds{}
 	e.Relations = make(map[string][]Resource)
