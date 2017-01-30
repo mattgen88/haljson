@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 )
 
 // Curie respresents a curie
@@ -17,20 +16,6 @@ type Curie struct {
 
 // Link represents a link
 type Link struct {
-	// If curied, special key nameing must be done
-	Curried    *bool
-	CurrieName *string
-	// When serializing to JSON we need to handle this specially
-	Deprecation *string
-	Href        string
-	HrefLang    *string
-	Name        *string
-	Profile     *string
-	Title       *string
-	Type        *string
-}
-
-type realLink struct {
 	Deprecation *string `json:"deprecation,omitempty"`
 	Href        string  `json:"href,omitempty"`
 	HrefLang    *string `json:"hreflang,omitempty"`
@@ -39,28 +24,8 @@ type realLink struct {
 	Type        *string `json:"type,omitempty"`
 }
 
-// MarshalJSON is used to marshal Link properly
-func (l *Link) MarshalJSON() ([]byte, error) {
-	b, err := json.Marshal(realLink{
-		Deprecation: l.Deprecation,
-		Href:        l.Href,
-		HrefLang:    l.HrefLang,
-		Profile:     l.Profile,
-		Title:       l.Title,
-		Type:        l.Type,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
-}
-
-// UnmarshalJSON is used to unmarshal Link properly
-func (l *Link) UnmarshalJSON(b []byte) error {
-	return nil
-}
-
 // Links is a container of Link, mapped by relation, and contains Curies
+// @TODO: Error check curies since links that are curied required a curie of type to exist
 type Links struct {
 	Self   *Link    `json:"-"`
 	Curies *[]Curie `json:"curies,omitempty"`
@@ -135,7 +100,6 @@ func (e *Embeds) MarshalJSON() ([]byte, error) {
 		buffer.WriteString(fmt.Sprintf("\"%s\": %s", key, string(jsonValue)))
 	}
 	buffer.WriteString("}")
-	log.Println(buffer)
 	return buffer.Bytes(), nil
 }
 
@@ -163,7 +127,6 @@ func (r *Resource) Self(uri string) error {
 
 // AddLink adds a link to reltype
 func (r *Resource) AddLink(reltype string, link *Link) error {
-	link.Name = &reltype
 	if _, ok := r.Links.Relations[reltype]; !ok {
 		r.Links.Relations[reltype] = []*Link{}
 	}
@@ -182,7 +145,6 @@ func (r *Resource) AddEmbed(reltype string, embed *Resource) error {
 
 // AddCurie adds a curie to the links
 func (r *Resource) AddCurie(curie *Curie) error {
-	log.Println(r.Links.Curies)
 	if r.Links.Curies == nil {
 		r.Links.Curies = &[]Curie{}
 	}
