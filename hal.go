@@ -159,10 +159,13 @@ func (r *Resource) MarshalJSON() ([]byte, error) {
 	for key, val := range r.Data {
 		obj[key] = val
 	}
-	if r.Links != nil && len(r.Links.Relations) > 0 {
+	if len(r.Links.Relations) > 0 || r.Links.Self != nil {
 		obj["_links"] = r.Links
+	} else {
+		fmt.Println("Found no links...")
+		fmt.Printf("%+v", r.Links)
 	}
-	if r.Embeds != nil && len(r.Embeds.Relations) > 0 {
+	if len(r.Embeds.Relations) > 0 {
 		obj["_embedded"] = r.Embeds
 	}
 	b, err := json.Marshal(obj)
