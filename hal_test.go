@@ -61,10 +61,11 @@ func TestLinks(t *testing.T) {
 }
 
 func TestLinksMarshal(t *testing.T) {
-	l := NewLinks()
-	l.Self = &Link{Href: "/"}
-	l.Relations["foo"] = []*Link{}
-	l.Relations["foo"] = append(l.Relations["foo"], &Link{Href: "/foo"})
+	r := NewResource()
+	r.Self("/")
+	r.AddLink("foo", &Link{Href: "/foo"})
+
+	l := r.Links
 
 	b, err := json.MarshalIndent(l, "", "\t")
 	if err != nil {
