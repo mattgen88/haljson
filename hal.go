@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // Curie respresents a curie
@@ -25,7 +26,6 @@ type Link struct {
 }
 
 // Links is a container of Link, mapped by relation, and contains Curies
-// @TODO: Error check curies since links that are curied required a curie of type to exist
 type Links struct {
 	Self   *Link    `json:"-"`
 	Curies *[]Curie `json:"curies,omitempty"`
@@ -117,18 +117,33 @@ type Resource struct {
 }
 
 // Self is used to add a self link
-func (r *Resource) Self(uri string) error {
-	if r.Links.Self != nil {
-		return errors.New("Self relation already exists!")
-	}
+func (r *Resource) Self(uri string) {
 	r.Links.Self = &Link{Href: uri}
-	return nil
 }
 
 // AddLink adds a link to reltype
 func (r *Resource) AddLink(reltype string, link *Link) error {
 	if _, ok := r.Links.Relations[reltype]; !ok {
 		r.Links.Relations[reltype] = []*Link{}
+	}
+
+	// Check if curied and that if curied, curie exists
+	curieExists := false
+	if strings.Index(reltype, ":") > 0 {
+		parts := strings.Split(reltype, ":")
+		var curies *[]Curie
+		curies = r.Links.Curies
+		if curies == nil {
+			return errors.New("Must add curie before adding a curied link")
+		}
+		for _, curie := range *curies {
+			if parts[0] == curie.Name {
+				curieExists = true
+			}
+		}
+		if !curieExists {
+			return errors.New("Must add curie before adding a curied link")
+		}
 	}
 	r.Links.Relations[reltype] = append(r.Links.Relations[reltype], link)
 	return nil
@@ -161,10 +176,8 @@ func (r *Resource) MarshalJSON() ([]byte, error) {
 	}
 	if len(r.Links.Relations) > 0 || r.Links.Self != nil {
 		obj["_links"] = r.Links
-	} else {
-		fmt.Println("Found no links...")
-		fmt.Printf("%+v", r.Links)
 	}
+
 	if len(r.Embeds.Relations) > 0 {
 		obj["_embedded"] = r.Embeds
 	}

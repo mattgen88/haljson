@@ -21,6 +21,10 @@ func TestResourceMarshal(t *testing.T) {
 	rEmbed := NewResource()
 	rEmbed.Self("/foo")
 
+	r.AddCurie(&Curie{Href: "/docs/bar/{rel}", Templated: true, Name: "bar"})
+
+	r.AddLink("bar:foo", &Link{Href: "/bar/foo"})
+
 	r.AddEmbed("foo", rEmbed)
 
 	b, err := json.MarshalIndent(r, "", "\t")
@@ -43,7 +47,19 @@ func TestResourceMarshal(t *testing.T) {
 	"_links": {
 		"self": {
 			"href": "/"
-		}
+		},
+		"curies": [
+			{
+				"name": "bar",
+				"href": "/docs/bar/{rel}",
+				"templated": true
+			}
+		],
+		"bar:foo": [
+			{
+				"href": "/bar/foo"
+			}
+		]
 	},
 	"bar": "baz"
 }`, string(b), "marshalled resource did not match")
@@ -81,4 +97,15 @@ func TestLinksMarshal(t *testing.T) {
 		}
 	]
 }`, string(b), "Links marshalled correctly")
+}
+
+func TestAddLinkBeforeCurie(t *testing.T) {
+	r := NewResource()
+	err := r.AddLink("foo:bar", &Link{Href: "/foo"})
+	assert.NotNil(t, err)
+
+	r.AddCurie(&Curie{Href: "/docs/bar/{rel}", Name: "bar"})
+	err2 := r.AddLink("foo:bar", &Link{Href: "/foo"})
+	assert.NotNil(t, err2)
+	assert.Equal(t, err, err2, "Same errors for link before curie")
 }
