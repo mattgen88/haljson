@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 )
 
@@ -190,7 +191,27 @@ func (r *Resource) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON unmarshals embeds
 func (r *Resource) UnmarshalJSON(b []byte) error {
+	var temp map[string]interface{}
+	temp = make(map[string]interface{})
+	err := json.Unmarshal(b, &temp)
+	if err != nil {
+		log.Println("Error unmarshalling", err)
+		return err
+	}
+
+	r.Data = make(map[string]interface{})
+
+	for k, v := range temp {
+		r.Data[k] = v
+	}
+	delete(r.Data, "_embedded")
+	delete(r.Data, "_links")
+
+	log.Println(temp["_embedded"])
+	log.Println(temp["_links"])
+
 	return nil
+
 }
 
 // NewResource creates a Resource and initializes it

@@ -65,6 +65,58 @@ func TestResourceMarshal(t *testing.T) {
 }`, string(b), "marshalled resource did not match")
 }
 
+func TestResourceUnmarshal(t *testing.T) {
+	marshaled := `{
+	"_embedded": {
+		"foo": [
+			{
+				"_links": {
+					"self": {
+						"href": "/foo"
+					}
+				}
+			}
+		]
+	},
+	"_links": {
+		"self": {
+			"href": "/"
+		},
+		"curies": [
+			{
+				"name": "bar",
+				"href": "/docs/bar/{rel}",
+				"templated": true
+			}
+		],
+		"bar:foo": [
+			{
+				"href": "/bar/foo"
+			}
+		]
+	},
+	"bar": "baz"
+}`
+
+	r := NewResource()
+	r.Self("/")
+	r.Data["bar"] = "baz"
+
+	rEmbed := NewResource()
+	rEmbed.Self("/foo")
+
+	r.AddCurie(&Curie{Href: "/docs/bar/{rel}", Templated: true, Name: "bar"})
+
+	r.AddLink("bar:foo", &Link{Href: "/bar/foo"})
+
+	r.AddEmbed("foo", rEmbed)
+
+	var inflated Resource
+	err := json.Unmarshal([]byte(marshaled), &inflated)
+	assert.Nil(t, err, "error in Unmarshal")
+	assert.Equal(t, r, &inflated, "did not unmarshal as expected")
+
+}
 func TestResourceSelf(t *testing.T) {
 	r := NewResource()
 	r.Self("/")
