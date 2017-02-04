@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 )
 
@@ -36,46 +35,130 @@ type Links struct {
 
 // MarshalJSON to marshal Links properly
 func (l *Links) MarshalJSON() ([]byte, error) {
-	buffer := bytes.NewBufferString("{")
-	firstrun := true
+	var bufferData []string
 	if l.Self != nil {
-		firstrun = false
 		jsonValue, err := json.Marshal(l.Self)
 		if err != nil {
 			return nil, err
 		}
-		buffer.WriteString(fmt.Sprintf("\"self\": %s", string(jsonValue)))
+		bufferData = append(bufferData, fmt.Sprintf("\"self\": %s", string(jsonValue)))
 	}
 	if l.Curies != nil {
-		if !firstrun {
-			buffer.WriteString(",")
-		} else {
-			firstrun = false
-		}
 		jsonValue, err := json.Marshal(l.Curies)
 		if err != nil {
 			return nil, err
 		}
-		buffer.WriteString(fmt.Sprintf("\"curies\": %s", string(jsonValue)))
+		bufferData = append(bufferData, fmt.Sprintf("\"curies\": %s", string(jsonValue)))
 	}
 	for key, links := range l.Relations {
-		if !firstrun {
-			buffer.WriteString(",")
-		} else {
-			firstrun = false
-		}
 		jsonValue, err := json.Marshal(links)
 		if err != nil {
 			return nil, err
 		}
-		buffer.WriteString(fmt.Sprintf("\"%s\": %s", key, string(jsonValue)))
+		bufferData = append(bufferData, fmt.Sprintf("\"%s\": %s", key, string(jsonValue)))
 	}
+	joined := strings.Join(bufferData, ",")
+	buffer := bytes.NewBufferString("{")
+	buffer.WriteString(joined)
 	buffer.WriteString("}")
 	return buffer.Bytes(), nil
 }
 
 // UnmarshalJSON to unmarshal links
 func (l *Links) UnmarshalJSON(b []byte) error {
+	var temp map[string]interface{}
+	temp = make(map[string]interface{})
+	err := json.Unmarshal(b, &temp)
+	if err != nil {
+		return err
+	}
+	if _, ok := temp["curies"]; ok {
+		var mycuries []Curie
+		for _, curies := range temp["curies"].([]interface{}) {
+			var curie Curie
+			for k, v := range curies.(map[string]interface{}) {
+				switch k {
+				case "name":
+					curie.Name = v.(string)
+				case "href":
+					curie.Href = v.(string)
+				case "templated":
+					curie.Templated = v.(bool)
+				}
+			}
+			mycuries = append(mycuries, curie)
+		}
+		l.Curies = &mycuries
+		delete(temp, "curies")
+	}
+
+	var self Link
+	if _, ok := temp["self"]; ok {
+		for k, v := range temp["self"].(map[string]interface{}) {
+			switch k {
+			case "href":
+				self.Href = v.(string)
+			case "deprecation":
+				var deprecation string
+				deprecation = v.(string)
+				self.Deprecation = &deprecation // hehe
+			case "hreflang":
+				var hreflang string
+				hreflang = v.(string)
+				self.HrefLang = &hreflang
+			case "profile":
+				var profile string
+				profile = v.(string)
+				self.Profile = &profile
+			case "title":
+				var title string
+				title = v.(string)
+				self.Title = &title
+			case "type":
+				var typeval string
+				typeval = v.(string)
+				self.Type = &typeval
+			}
+		}
+		l.Self = &self
+		delete(temp, "self")
+	}
+
+	l.Relations = make(map[string][]*Link)
+	for rel, v := range temp {
+		var links []*Link
+		for _, properties := range v.([]interface{}) {
+			var link Link
+			for key, property := range properties.(map[string]interface{}) {
+				switch key {
+				case "href":
+					link.Href = property.(string)
+				case "deprecation":
+					var deprecation string
+					deprecation = property.(string)
+					link.Deprecation = &deprecation // hehe
+				case "hreflang":
+					var hreflang string
+					hreflang = property.(string)
+					link.HrefLang = &hreflang
+				case "profile":
+					var profile string
+					profile = property.(string)
+					link.Profile = &profile
+				case "title":
+					var title string
+					title = property.(string)
+					link.Title = &title
+				case "type":
+					var typeval string
+					typeval = property.(string)
+					link.Type = &typeval
+				}
+			}
+			links = append(links, &link)
+		}
+		l.Relations[rel] = links
+	}
 	return nil
 }
 
@@ -86,26 +169,41 @@ type Embeds struct {
 
 // MarshalJSON marshals embeds
 func (e *Embeds) MarshalJSON() ([]byte, error) {
-	buffer := bytes.NewBufferString("{")
-	firstrun := true
+	var bufferData []string
 	for key, links := range e.Relations {
-		if !firstrun {
-			buffer.WriteString(",")
-		} else {
-			firstrun = false
-		}
 		jsonValue, err := json.Marshal(links)
 		if err != nil {
 			return nil, err
 		}
-		buffer.WriteString(fmt.Sprintf("\"%s\": %s", key, string(jsonValue)))
+		bufferData = append(bufferData, fmt.Sprintf("\"%s\": %s", key, string(jsonValue)))
 	}
+	buffer := bytes.NewBufferString("{")
+	buffer.WriteString(strings.Join(bufferData, ","))
 	buffer.WriteString("}")
 	return buffer.Bytes(), nil
 }
 
 // UnmarshalJSON unmarshals embeds
 func (e *Embeds) UnmarshalJSON(b []byte) error {
+	var temp map[string]interface{}
+	temp = make(map[string]interface{})
+	err := json.Unmarshal(b, &temp)
+	if err != nil {
+		return err
+	}
+	e.Relations = make(map[string][]Resource)
+	for k, v := range temp {
+		var res []Resource
+		b, err := json.Marshal(v)
+		if err != nil {
+			return err
+		}
+		err = json.Unmarshal(b, &res)
+		if err != nil {
+			return err
+		}
+		e.Relations[k] = res
+	}
 	return nil
 }
 
@@ -170,23 +268,55 @@ func (r *Resource) AddCurie(curie *Curie) error {
 
 // MarshalJSON marshals a resource properly
 func (r *Resource) MarshalJSON() ([]byte, error) {
-	var obj map[string]interface{}
-	obj = make(map[string]interface{})
-	for key, val := range r.Data {
-		obj[key] = val
-	}
+	var links *string
+	var embeds *string
 	if len(r.Links.Relations) > 0 || r.Links.Self != nil {
-		obj["_links"] = r.Links
+		b, err := json.Marshal(r.Links)
+		if err != nil {
+			return nil, err
+		}
+		linkString := fmt.Sprintf("\"_links\": %s", string(b))
+		links = &linkString
 	}
 
 	if len(r.Embeds.Relations) > 0 {
-		obj["_embedded"] = r.Embeds
+		b, err := json.Marshal(r.Embeds)
+		if err != nil {
+			return nil, err
+		}
+		embedString := fmt.Sprintf("\"_embedded\": %s", string(b))
+		embeds = &embedString
 	}
-	b, err := json.Marshal(obj)
-	if err != nil {
-		return nil, err
+
+	var dataBuffer []string
+	for key, val := range r.Data {
+		switch t := val.(type) {
+		case string:
+			dataBuffer = append(dataBuffer, fmt.Sprintf("\"%s\": \"%s\"", key, t))
+		default:
+			b, err := json.Marshal(t)
+			if err != nil {
+				return nil, err
+			}
+			dataBuffer = append(dataBuffer, fmt.Sprintf("\"%s\": %s", key, string(b)))
+		}
 	}
-	return b, nil
+	buffer := bytes.NewBufferString("{")
+	var joined []string
+	if links != nil {
+		joined = append(joined, *links)
+	}
+	if embeds != nil {
+		joined = append(joined, *embeds)
+	}
+	if len(dataBuffer) > 0 {
+		joined = append(joined, strings.Join(dataBuffer, ","))
+	}
+
+	buffer.WriteString(strings.Join(joined, ","))
+	buffer.WriteString("}")
+
+	return buffer.Bytes(), nil
 }
 
 // UnmarshalJSON unmarshals embeds
@@ -195,20 +325,40 @@ func (r *Resource) UnmarshalJSON(b []byte) error {
 	temp = make(map[string]interface{})
 	err := json.Unmarshal(b, &temp)
 	if err != nil {
-		log.Println("Error unmarshalling", err)
 		return err
 	}
+
+	// re marshal embedded and links
+	embededjson, err := json.Marshal(temp["_embedded"])
+	if err != nil {
+		return err
+	}
+	embedded := Embeds{}
+	links := Links{}
+	err = json.Unmarshal(embededjson, &embedded)
+	if err != nil {
+		return err
+	}
+	r.Embeds = &embedded
+	delete(temp, "_embedded")
+
+	linksjson, err := json.Marshal(temp["_links"])
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(linksjson, &links)
+	if err != nil {
+		return err
+	}
+	r.Links = &links
+
+	delete(temp, "_links")
 
 	r.Data = make(map[string]interface{})
 
 	for k, v := range temp {
 		r.Data[k] = v
 	}
-	delete(r.Data, "_embedded")
-	delete(r.Data, "_links")
-
-	log.Println(temp["_embedded"])
-	log.Println(temp["_links"])
 
 	return nil
 
