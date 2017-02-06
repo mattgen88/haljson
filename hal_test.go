@@ -3,9 +3,10 @@ package haljson
 import (
 	"testing"
 
+	"encoding/json"
+
 	"github.com/stretchr/testify/assert"
 )
-import "encoding/json"
 
 func TestResource(t *testing.T) {
 	r := NewResource()
@@ -98,12 +99,17 @@ func TestResourceUnmarshal(t *testing.T) {
 			}
 		]
 	},
+	"foo": {"lel": "lawl"},
 	"bar": "baz"
 }`
 
 	r := NewResource()
 	r.Self("/")
 	r.Data["bar"] = "baz"
+	var foo map[string]interface{}
+	foo = make(map[string]interface{})
+	foo["lel"] = "lawl"
+	r.Data["foo"] = foo
 
 	rEmbed := NewResource()
 	rEmbed.Self("/foo")
@@ -121,6 +127,10 @@ func TestResourceUnmarshal(t *testing.T) {
 	assert.Equal(t, r.Embeds, inflated.Embeds, "embeds was not the same")
 	assert.Equal(t, r.Links, inflated.Links, "links was not the same")
 
+	// Reflate and test equivalency still
+	b, err := json.MarshalIndent(inflated, "", "\t")
+	assert.Nil(t, err)
+	assert.Equal(t, marshaled, string(b), "failed to marshal, unmarshal, marshal to the same thing")
 }
 func TestResourceSelf(t *testing.T) {
 	r := NewResource()

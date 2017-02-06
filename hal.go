@@ -8,6 +8,25 @@ import (
 	"strings"
 )
 
+const (
+	// NAME is a name link, curie property
+	NAME = "name"
+	// HREF is a href link, curie property
+	HREF = "href"
+	// HREFLANG is a hreflang link property
+	HREFLANG = "hreflang"
+	// TEMPLATED is a templated link, curie property
+	TEMPLATED = "templated"
+	// PROFILE is a profile link property
+	PROFILE = "profile"
+	// TITLE is a title link property
+	TITLE = "title"
+	// TYPE is a type link property
+	TYPE = "type"
+	// DEPRECATION is a deprecation link property
+	DEPRECATION = "deprecation"
+)
+
 // Curie respresents a curie
 type Curie struct {
 	Name      string `json:"name"`
@@ -78,11 +97,11 @@ func (l *Links) UnmarshalJSON(b []byte) error {
 			var curie Curie
 			for k, v := range curies.(map[string]interface{}) {
 				switch k {
-				case "name":
+				case NAME:
 					curie.Name = v.(string)
-				case "href":
+				case HREF:
 					curie.Href = v.(string)
-				case "templated":
+				case TEMPLATED:
 					curie.Templated = v.(bool)
 				}
 			}
@@ -96,25 +115,25 @@ func (l *Links) UnmarshalJSON(b []byte) error {
 	if _, ok := temp["self"]; ok {
 		for k, v := range temp["self"].(map[string]interface{}) {
 			switch k {
-			case "href":
+			case HREF:
 				self.Href = v.(string)
-			case "deprecation":
+			case DEPRECATION:
 				var deprecation string
 				deprecation = v.(string)
 				self.Deprecation = &deprecation // hehe
-			case "hreflang":
+			case HREFLANG:
 				var hreflang string
 				hreflang = v.(string)
 				self.HrefLang = &hreflang
-			case "profile":
+			case PROFILE:
 				var profile string
 				profile = v.(string)
 				self.Profile = &profile
-			case "title":
+			case TITLE:
 				var title string
 				title = v.(string)
 				self.Title = &title
-			case "type":
+			case TYPE:
 				var typeval string
 				typeval = v.(string)
 				self.Type = &typeval
@@ -131,25 +150,25 @@ func (l *Links) UnmarshalJSON(b []byte) error {
 			var link Link
 			for key, property := range properties.(map[string]interface{}) {
 				switch key {
-				case "href":
+				case HREF:
 					link.Href = property.(string)
-				case "deprecation":
+				case DEPRECATION:
 					var deprecation string
 					deprecation = property.(string)
 					link.Deprecation = &deprecation // hehe
-				case "hreflang":
+				case HREFLANG:
 					var hreflang string
 					hreflang = property.(string)
 					link.HrefLang = &hreflang
-				case "profile":
+				case PROFILE:
 					var profile string
 					profile = property.(string)
 					link.Profile = &profile
-				case "title":
+				case TITLE:
 					var title string
 					title = property.(string)
 					link.Title = &title
-				case "type":
+				case TYPE:
 					var typeval string
 					typeval = property.(string)
 					link.Type = &typeval
@@ -212,7 +231,7 @@ type Resource struct {
 	Links  *Links  `json:"_links,omitempty"`
 	Embeds *Embeds `json:"_embedded,omitempty"`
 	// When serializing to JSON we need to handle this specially
-	Data map[string]interface{}
+	Data map[string]interface{} `json:"-"`
 }
 
 // Self is used to add a self link
@@ -290,25 +309,25 @@ func (r *Resource) MarshalJSON() ([]byte, error) {
 
 	var dataBuffer []string
 	for key, val := range r.Data {
-		switch t := val.(type) {
-		case string:
-			dataBuffer = append(dataBuffer, fmt.Sprintf("\"%s\": \"%s\"", key, t))
-		default:
-			b, err := json.Marshal(t)
-			if err != nil {
-				return nil, err
-			}
-			dataBuffer = append(dataBuffer, fmt.Sprintf("\"%s\": %s", key, string(b)))
+		b, err := json.Marshal(val)
+		if err != nil {
+			return nil, err
 		}
+		dataBuffer = append(dataBuffer, fmt.Sprintf("\"%s\": %s", key, string(b)))
 	}
-	buffer := bytes.NewBufferString("{")
+
 	var joined []string
+
+	buffer := bytes.NewBufferString("{")
+
 	if links != nil {
 		joined = append(joined, *links)
 	}
+
 	if embeds != nil {
 		joined = append(joined, *embeds)
 	}
+
 	if len(dataBuffer) > 0 {
 		joined = append(joined, strings.Join(dataBuffer, ","))
 	}
@@ -355,10 +374,7 @@ func (r *Resource) UnmarshalJSON(b []byte) error {
 	delete(temp, "_links")
 
 	r.Data = make(map[string]interface{})
-
-	for k, v := range temp {
-		r.Data[k] = v
-	}
+	r.Data = temp
 
 	return nil
 
