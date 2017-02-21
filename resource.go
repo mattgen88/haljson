@@ -23,30 +23,7 @@ func (r *Resource) Self(uri string) {
 
 // AddLink adds a link to reltype
 func (r *Resource) AddLink(reltype string, link *Link) error {
-	if _, ok := r.Links.Relations[reltype]; !ok {
-		r.Links.Relations[reltype] = []*Link{}
-	}
-
-	// Check if curied and that if curied, curie exists
-	curieExists := false
-	if strings.Index(reltype, ":") > 0 {
-		parts := strings.Split(reltype, ":")
-		var curies *[]Curie
-		curies = r.Links.Curies
-		if curies == nil {
-			return ErrNoCurie
-		}
-		for _, curie := range *curies {
-			if parts[0] == curie.Name {
-				curieExists = true
-			}
-		}
-		if !curieExists {
-			return ErrNoCurie
-		}
-	}
-	r.Links.Relations[reltype] = append(r.Links.Relations[reltype], link)
-	return nil
+	return r.Links.AddLink(reltype, link)
 }
 
 // AddEmbed adds a Resource by reltype
@@ -169,10 +146,24 @@ func (r *Resource) UnmarshalJSON(b []byte) error {
 		if err != nil {
 			return err
 		}
-
 	}
+
 	r.Links = links
 	delete(temp, "_links")
+
+	if temp["curies"] != nil {
+		var curies *[]Curie
+		curiesjson, err := json.Marshal(temp["curies"])
+		if err != nil {
+			return err
+		}
+		err = json.Unmarshal(curiesjson, &curies)
+		if err != nil {
+			return err
+		}
+		r.Links.Curies = curies
+	}
+	delete(temp, "Curies")
 
 	// Whatever is left over shove into Data
 	r.Data = temp

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -13,6 +14,7 @@ type Link struct {
 	Href        string  `json:"href,omitempty"`
 	HrefLang    *string `json:"hreflang,omitempty"`
 	Profile     *string `json:"profile,omitempty"`
+	Templated   *bool   `json:"templated,omitempty"`
 	Title       *string `json:"title,omitempty"`
 	Type        *string `json:"type,omitempty"`
 }
@@ -25,8 +27,37 @@ type Links struct {
 	Relations map[string][]*Link
 }
 
+// AddLink adds a link to reltype
+func (l *Links) AddLink(reltype string, link *Link) error {
+	// Check if curied and that if curied, curie exists
+	curieExists := false
+	if strings.Index(reltype, ":") > 0 {
+		parts := strings.Split(reltype, ":")
+		var curies *[]Curie
+		curies = l.Curies
+		if curies == nil {
+			return ErrNoCurie
+		}
+		for _, curie := range *curies {
+			if parts[0] == curie.Name {
+				curieExists = true
+			}
+		}
+		if !curieExists {
+			return ErrNoCurie
+		}
+	}
+	if _, ok := l.Relations[reltype]; !ok {
+		l.Relations[reltype] = []*Link{}
+	}
+
+	l.Relations[reltype] = append(l.Relations[reltype], link)
+	return nil
+}
+
 // MarshalJSON to marshal Links properly
 func (l *Links) MarshalJSON() ([]byte, error) {
+	// @TODO sort keys
 	var bufferData []string
 	if l.Self != nil {
 		jsonValue, err := json.Marshal(l.Self)
@@ -42,8 +73,18 @@ func (l *Links) MarshalJSON() ([]byte, error) {
 		}
 		bufferData = append(bufferData, fmt.Sprintf("\"curies\": %s", string(jsonValue)))
 	}
-	for key, links := range l.Relations {
-		jsonValue, err := json.Marshal(links)
+
+	// Sort keys for data
+	var sortedKeys = make([]string, len(l.Relations))
+	i := 0
+	for k := range l.Relations {
+		sortedKeys[i] = k
+		i++
+	}
+	sort.Strings(sortedKeys)
+
+	for _, key := range sortedKeys {
+		jsonValue, err := json.Marshal(l.Relations[key])
 		if err != nil {
 			return nil, err
 		}
@@ -58,8 +99,7 @@ func (l *Links) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON to unmarshal links
 func (l *Links) UnmarshalJSON(b []byte) error {
-	var temp map[string]interface{}
-	temp = make(map[string]interface{})
+	var temp = make(map[string]interface{})
 	err := json.Unmarshal(b, &temp)
 	if err != nil {
 		return err
@@ -90,26 +130,6 @@ func (l *Links) UnmarshalJSON(b []byte) error {
 			switch k {
 			case HREF:
 				self.Href = v.(string)
-			case DEPRECATION:
-				var deprecation string
-				deprecation = v.(string)
-				self.Deprecation = &deprecation // hehe
-			case HREFLANG:
-				var hreflang string
-				hreflang = v.(string)
-				self.HrefLang = &hreflang
-			case PROFILE:
-				var profile string
-				profile = v.(string)
-				self.Profile = &profile
-			case TITLE:
-				var title string
-				title = v.(string)
-				self.Title = &title
-			case TYPE:
-				var typeval string
-				typeval = v.(string)
-				self.Type = &typeval
 			}
 		}
 		l.Self = &self
@@ -128,7 +148,7 @@ func (l *Links) UnmarshalJSON(b []byte) error {
 				case DEPRECATION:
 					var deprecation string
 					deprecation = property.(string)
-					link.Deprecation = &deprecation // hehe
+					link.Deprecation = &deprecation
 				case HREFLANG:
 					var hreflang string
 					hreflang = property.(string)
@@ -145,6 +165,10 @@ func (l *Links) UnmarshalJSON(b []byte) error {
 					var typeval string
 					typeval = property.(string)
 					link.Type = &typeval
+				case TEMPLATED:
+					var templated bool
+					templated = property.(bool)
+					link.Templated = &templated
 				}
 			}
 			links = append(links, &link)
