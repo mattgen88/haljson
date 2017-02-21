@@ -27,6 +27,15 @@ type Links struct {
 	Relations map[string][]*Link
 }
 
+// AddCurie adds a curie to the links
+func (l *Links) AddCurie(curie *Curie) error {
+	if l.Curies == nil {
+		l.Curies = &[]Curie{}
+	}
+	*l.Curies = append(*l.Curies, *curie)
+	return nil
+}
+
 // AddLink adds a link to reltype
 func (l *Links) AddLink(reltype string, link *Link) error {
 	// Check if curied and that if curied, curie exists

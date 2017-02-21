@@ -37,11 +37,7 @@ func (r *Resource) AddEmbed(reltype string, embed *Resource) error {
 
 // AddCurie adds a curie to the links
 func (r *Resource) AddCurie(curie *Curie) error {
-	if r.Links.Curies == nil {
-		r.Links.Curies = &[]Curie{}
-	}
-	*r.Links.Curies = append(*r.Links.Curies, *curie)
-	return nil
+	return r.Links.AddCurie(curie)
 }
 
 // MarshalJSON marshals a resource properly
