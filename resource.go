@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -68,8 +69,10 @@ func (r *Resource) AddCurie(curie *Curie) error {
 
 // MarshalJSON marshals a resource properly
 func (r *Resource) MarshalJSON() ([]byte, error) {
+
+	// Marshal links
 	var links *string
-	if len(r.Links.Relations) > 0 || r.Links.Self != nil {
+	if r.Links != nil && (len(r.Links.Relations) > 0 || r.Links.Self != nil) {
 		b, err := json.Marshal(r.Links)
 		if err != nil {
 			return nil, err
@@ -78,8 +81,9 @@ func (r *Resource) MarshalJSON() ([]byte, error) {
 		links = &linkString
 	}
 
+	// Marshal Embeds
 	var embeds *string
-	if len(r.Embeds.Relations) > 0 {
+	if r.Embeds != nil && len(r.Embeds.Relations) > 0 {
 		b, err := json.Marshal(r.Embeds)
 		if err != nil {
 			return nil, err
@@ -88,15 +92,26 @@ func (r *Resource) MarshalJSON() ([]byte, error) {
 		embeds = &embedString
 	}
 
+	// Sort keys for data
+	var sortedKeys = make([]string, len(r.Data))
+	i := 0
+	for k := range r.Data {
+		sortedKeys[i] = k
+		i++
+	}
+	sort.Strings(sortedKeys)
+
+	// Marshal the data
 	var dataBuffer []string
-	for key, val := range r.Data {
-		b, err := json.Marshal(val)
+	for _, key := range sortedKeys {
+		b, err := json.Marshal(r.Data[key])
 		if err != nil {
 			return nil, err
 		}
 		dataBuffer = append(dataBuffer, fmt.Sprintf("\"%s\": %s", key, string(b)))
 	}
 
+	// Produce JSON
 	var joined []string
 
 	buffer := bytes.NewBufferString("{")
@@ -128,39 +143,39 @@ func (r *Resource) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
+	embedded := NewEmbeds()
+
 	if temp["_embedded"] != nil {
 		// re marshal embedded and links
 		embededjson, err := json.Marshal(temp["_embedded"])
 		if err != nil {
 			return err
 		}
-		embedded := NewEmbeds()
 		err = json.Unmarshal(embededjson, &embedded)
 		if err != nil {
 			return err
 		}
-		r.Embeds = embedded
 	}
+	r.Embeds = embedded
 	delete(temp, "_embedded")
 
+	links := NewLinks()
 	if temp["_links"] != nil {
 		linksjson, err := json.Marshal(temp["_links"])
 		if err != nil {
 			return err
 		}
-		links := NewLinks()
 		err = json.Unmarshal(linksjson, &links)
 		if err != nil {
 			return err
 		}
-		r.Links = links
 
 	}
+	r.Links = links
 	delete(temp, "_links")
 
 	// Whatever is left over shove into Data
 	r.Data = temp
-
 	return nil
 
 }

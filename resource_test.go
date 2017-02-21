@@ -65,28 +65,50 @@ func TestResourceMarshal(t *testing.T) {
 }
 
 func TestResourceUnmarshal(t *testing.T) {
-	t.Skip()
 	marshaled := `{
-	"foo": {"lel": "lawl"},
-	"bar": "baz"
+	"_links": {
+		"self": {
+			"href": "/"
+		}
+	},
+	"_embedded": {
+		"foo": [
+			{
+				"_links": {
+					"self": {
+						"href": "/foo"
+					}
+				},
+				"test": "foo"
+			}
+		]
+	},
+	"bar": "baz",
+	"foo": {
+		"lel": "lawl"
+	}
 }`
 
-	r := &Resource{}
-	r.Data = make(map[string]interface{})
+	r := NewResource()
+	r.Self("/")
 	r.Data["bar"] = "baz"
-	var foo map[string]interface{}
-	foo = make(map[string]interface{})
+	var foo = make(map[string]interface{})
 	foo["lel"] = "lawl"
 	r.Data["foo"] = foo
+	rEmbed := NewResource()
+	rEmbed.Self("/foo")
+	rEmbed.Data["test"] = "foo"
+	r.AddEmbed("foo", rEmbed)
 
 	var inflated Resource
 	err := json.Unmarshal([]byte(marshaled), &inflated)
 	assert.Nil(t, err, "error in unmarshal")
 	assert.Equal(t, r.Data, inflated.Data, "data was not the same")
 	assert.Equal(t, r.Links, inflated.Links, "links was not the same")
+	assert.Equal(t, r.Embeds, inflated.Embeds, "embeds was not the same")
 
 	// Reflate and test equivalency still
-	b, err := json.MarshalIndent(inflated, "", "\t")
+	b, err := json.MarshalIndent(r, "", "\t")
 	assert.Nil(t, err)
 	assert.Equal(t, marshaled, string(b), "failed to marshal, unmarshal, marshal to the same thing")
 }
