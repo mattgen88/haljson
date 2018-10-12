@@ -14,7 +14,7 @@ type Link struct {
 	Href        string  `json:"href,omitempty"`
 	HrefLang    *string `json:"hreflang,omitempty"`
 	Profile     *string `json:"profile,omitempty"`
-	Templated   *bool   `json:"templated,omitempty"`
+	Templated   bool   `json:"templated,omitempty"`
 	Title       *string `json:"title,omitempty"`
 	Type        *string `json:"type,omitempty"`
 }
@@ -175,9 +175,7 @@ func (l *Links) UnmarshalJSON(b []byte) error {
 					typeval = property.(string)
 					link.Type = &typeval
 				case TEMPLATED:
-					var templated bool
-					templated = property.(bool)
-					link.Templated = &templated
+					link.Templated = property.(bool)
 				}
 			}
 			links = append(links, &link)
