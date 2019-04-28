@@ -175,9 +175,7 @@ func (l *Links) UnmarshalJSON(b []byte) error {
 					typeval = property.(string)
 					link.Type = &typeval
 				case TEMPLATED:
-					var templated bool
-					templated = property.(bool)
-					link.Templated = templated
+					link.Templated = property.(bool)
 				}
 			}
 			links = append(links, &link)
