@@ -17,12 +17,4 @@ const (
 	TYPE = "type"
 	// DEPRECATION is a deprecation link property
 	DEPRECATION = "deprecation"
-	// SELF represents the self key
-	SELF = "self"
-	// CURIES represents the curies key
-	CURIES = "curies"
-	// LINKS represents the _links key
-	LINKS = "_links"
-	// EMBEDDED represents the _embedded key
-	EMBEDDED = "_embedded"
 )
