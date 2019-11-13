@@ -50,7 +50,7 @@ func (r *Resource) MarshalJSON() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		linkString := fmt.Sprintf("\"_links\": %s", string(b))
+		linkString := fmt.Sprintf("\"%s\": %s", LINKS, string(b))
 		links = &linkString
 	}
 
@@ -61,7 +61,7 @@ func (r *Resource) MarshalJSON() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		embedString := fmt.Sprintf("\"_embedded\": %s", string(b))
+		embedString := fmt.Sprintf("\"%s\": %s", EMBEDDED, string(b))
 		embeds = &embedString
 	}
 
@@ -118,9 +118,9 @@ func (r *Resource) UnmarshalJSON(b []byte) error {
 
 	embedded := NewEmbeds()
 
-	if temp["_embedded"] != nil {
+	if temp[EMBEDDED] != nil {
 		// re marshal embedded and links
-		embededjson, err := json.Marshal(temp["_embedded"])
+		embededjson, err := json.Marshal(temp[EMBEDDED])
 		if err != nil {
 			return err
 		}
@@ -130,11 +130,11 @@ func (r *Resource) UnmarshalJSON(b []byte) error {
 		}
 	}
 	r.Embeds = embedded
-	delete(temp, "_embedded")
+	delete(temp, EMBEDDED)
 
 	links := NewLinks()
-	if temp["_links"] != nil {
-		linksjson, err := json.Marshal(temp["_links"])
+	if temp[LINKS] != nil {
+		linksjson, err := json.Marshal(temp[LINKS])
 		if err != nil {
 			return err
 		}
@@ -145,11 +145,11 @@ func (r *Resource) UnmarshalJSON(b []byte) error {
 	}
 
 	r.Links = links
-	delete(temp, "_links")
+	delete(temp, LINKS)
 
-	if temp["curies"] != nil {
+	if temp[CURIES] != nil {
 		var curies *[]Curie
-		curiesjson, err := json.Marshal(temp["curies"])
+		curiesjson, err := json.Marshal(temp[CURIES])
 		if err != nil {
 			return err
 		}
@@ -159,7 +159,7 @@ func (r *Resource) UnmarshalJSON(b []byte) error {
 		}
 		r.Links.Curies = curies
 	}
-	delete(temp, "Curies")
+	delete(temp, CURIES)
 
 	// Whatever is left over shove into Data
 	r.Data = temp

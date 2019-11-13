@@ -20,11 +20,11 @@ func TestLinksMarshal(t *testing.T) {
 	typeval := "application/hal+json"
 	hreflang := "en_US"
 	profile := "string uri"
-	err := r.AddLink("bar:baz", &Link{Href: "/bar/{item}", Templated: true, Title: &title, Deprecation: &deprecation, Type: &typeval, HrefLang: &hreflang, Profile: &profile})
+	err := r.AddLink("bar:baz", &Link{Href: "/bar/{item}", Templated: true, Title: title, Deprecation: deprecation, Type: typeval, HrefLang: hreflang, Profile: profile})
 	assert.NotNil(t, err, "expected an error from adding link")
 	assert.Equal(t, err, ErrNoCurie, "Expected ErrNoCurie to be returned")
 	r.AddCurie(&Curie{Name: "bar", Templated: true, Href: "/docs/bar"})
-	err = r.AddLink("bar:baz", &Link{Href: "/bar/{item}", Templated: true, Title: &title, Deprecation: &deprecation, Type: &typeval, HrefLang: &hreflang, Profile: &profile})
+	err = r.AddLink("bar:baz", &Link{Href: "/bar/{item}", Templated: true, Title: title, Deprecation: deprecation, Type: typeval, HrefLang: hreflang, Profile: profile})
 	assert.Nil(t, err, "expected no error from adding link")
 
 	l := r.Links
@@ -105,7 +105,7 @@ func TestLinksUnmarshal(t *testing.T) {
 	typeval := "application/hal+json"
 	hreflang := "en_US"
 	profile := "string uri"
-	r.AddLink("bar:baz", &Link{Href: "/bar/{item}", Templated: true, Title: &title, Deprecation: &deprecation, Type: &typeval, HrefLang: &hreflang, Profile: &profile})
+	r.AddLink("bar:baz", &Link{Href: "/bar/{item}", Templated: true, Title: title, Deprecation: deprecation, Type: typeval, HrefLang: hreflang, Profile: profile})
 
 	assert.Equal(t, r.Links.Curies, inflated.Curies, "Links curies unmarshalled incorrectly")
 	assert.Equal(t, r.Links.Relations, inflated.Relations, "Links relations unmarshalled incorrectly")

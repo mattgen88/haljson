@@ -10,13 +10,13 @@ import (
 
 // Link represents a link
 type Link struct {
-	Deprecation *string `json:"deprecation,omitempty"`
-	Href        string  `json:"href,omitempty"`
-	HrefLang    *string `json:"hreflang,omitempty"`
-	Profile     *string `json:"profile,omitempty"`
-	Templated   bool    `json:"templated,omitempty"`
-	Title       *string `json:"title,omitempty"`
-	Type        *string `json:"type,omitempty"`
+	Deprecation string `json:"deprecation,omitempty"`
+	Href        string `json:"href,omitempty"`
+	HrefLang    string `json:"hreflang,omitempty"`
+	Profile     string `json:"profile,omitempty"`
+	Templated   bool   `json:"templated,omitempty"`
+	Title       string `json:"title,omitempty"`
+	Type        string `json:"type,omitempty"`
 }
 
 // Links is a container of Link, mapped by relation, and contains Curies
@@ -25,6 +25,48 @@ type Links struct {
 	Curies *[]Curie `json:"curies,omitempty"`
 	// When serializing to JSON we need to handle this specially
 	Relations map[string][]*Link
+}
+
+// SetTitle sets the title, chainable
+func (l *Link) SetTitle(title string) *Link {
+	l.Title = title
+	return l
+}
+
+// SetDeprication sets deprecation, chainable
+func (l *Link) SetDeprication(deprecation string) *Link {
+	l.Deprecation = deprecation
+	return l
+}
+
+// SetHref sets href, chainable
+func (l *Link) SetHref(href string) *Link {
+	l.Href = href
+	return l
+}
+
+// SetHrefLang sets hreflang, chainable
+func (l *Link) SetHrefLang(lang string) *Link {
+	l.HrefLang = lang
+	return l
+}
+
+// SetProfile sets profile, chainable
+func (l *Link) SetProfile(profile string) *Link {
+	l.Profile = profile
+	return l
+}
+
+// SetTemplated sets templated, chainable
+func (l *Link) SetTemplated(templated bool) *Link {
+	l.Templated = templated
+	return l
+}
+
+// SetType sets type, chainable
+func (l *Link) SetType(linkType string) *Link {
+	l.Type = linkType
+	return l
 }
 
 // AddCurie adds a curie to the links
@@ -73,14 +115,14 @@ func (l *Links) MarshalJSON() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		bufferData = append(bufferData, fmt.Sprintf("\"self\": %s", string(jsonValue)))
+		bufferData = append(bufferData, fmt.Sprintf("\"%s\": %s", SELF, string(jsonValue)))
 	}
 	if l.Curies != nil {
 		jsonValue, err := json.Marshal(l.Curies)
 		if err != nil {
 			return nil, err
 		}
-		bufferData = append(bufferData, fmt.Sprintf("\"curies\": %s", string(jsonValue)))
+		bufferData = append(bufferData, fmt.Sprintf("\"%s\": %s", CURIES, string(jsonValue)))
 	}
 
 	// Sort keys for data
@@ -113,9 +155,9 @@ func (l *Links) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return err
 	}
-	if _, ok := temp["curies"]; ok {
+	if _, ok := temp[CURIES]; ok {
 		var mycuries []Curie
-		for _, curies := range temp["curies"].([]interface{}) {
+		for _, curies := range temp[CURIES].([]interface{}) {
 			var curie Curie
 			for k, v := range curies.(map[string]interface{}) {
 				switch k {
@@ -130,19 +172,19 @@ func (l *Links) UnmarshalJSON(b []byte) error {
 			mycuries = append(mycuries, curie)
 		}
 		l.Curies = &mycuries
-		delete(temp, "curies")
+		delete(temp, CURIES)
 	}
 
 	var self Link
-	if _, ok := temp["self"]; ok {
-		for k, v := range temp["self"].(map[string]interface{}) {
+	if _, ok := temp[SELF]; ok {
+		for k, v := range temp[SELF].(map[string]interface{}) {
 			switch k {
 			case HREF:
 				self.Href = v.(string)
 			}
 		}
 		l.Self = &self
-		delete(temp, "self")
+		delete(temp, SELF)
 	}
 
 	l.Relations = make(map[string][]*Link)
@@ -157,23 +199,23 @@ func (l *Links) UnmarshalJSON(b []byte) error {
 				case DEPRECATION:
 					var deprecation string
 					deprecation = property.(string)
-					link.Deprecation = &deprecation
+					link.Deprecation = deprecation
 				case HREFLANG:
 					var hreflang string
 					hreflang = property.(string)
-					link.HrefLang = &hreflang
+					link.HrefLang = hreflang
 				case PROFILE:
 					var profile string
 					profile = property.(string)
-					link.Profile = &profile
+					link.Profile = profile
 				case TITLE:
 					var title string
 					title = property.(string)
-					link.Title = &title
+					link.Title = title
 				case TYPE:
 					var typeval string
 					typeval = property.(string)
-					link.Type = &typeval
+					link.Type = typeval
 				case TEMPLATED:
 					link.Templated = property.(bool)
 				}
