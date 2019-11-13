@@ -1,4 +1,4 @@
-module github.com/mattgen88/hajson/v2
+module github.com/mattgen88/haljson/v2
 
 require github.com/stretchr/testify v1.4.0
 
