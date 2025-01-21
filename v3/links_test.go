@@ -12,7 +12,7 @@ func TestLinks(t *testing.T) {
 }
 
 func TestLinksMarshal(t *testing.T) {
-	r := NewResource()
+	r := NewResource[any]()
 	r.Self("/")
 	r.AddLink("foo", &Link{Href: "/foo"})
 	deprecation := "string url"
@@ -96,7 +96,7 @@ func TestLinksUnmarshal(t *testing.T) {
 	err := json.Unmarshal([]byte(marshalled), &inflated)
 	assert.Nil(t, err, "Expected no error unmarshalling")
 
-	r := NewResource()
+	r := NewResource[any]()
 	r.Self("/")
 	r.AddLink("foo", &Link{Href: "/foo"})
 	r.AddCurie(&Curie{Name: "bar", Templated: true, Href: "/docs/bar"})
@@ -113,7 +113,7 @@ func TestLinksUnmarshal(t *testing.T) {
 }
 
 func TestAddLinkBeforeCurie(t *testing.T) {
-	r := NewResource()
+	r := NewResource[any]()
 	err := r.AddLink("foo:bar", &Link{Href: "/foo"})
 	assert.NotNil(t, err)
 

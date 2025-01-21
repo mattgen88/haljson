@@ -150,16 +150,16 @@ func (l *Links) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON to unmarshal links
 func (l *Links) UnmarshalJSON(b []byte) error {
-	var temp = make(map[string]interface{})
+	var temp = make(map[string]any)
 	err := json.Unmarshal(b, &temp)
 	if err != nil {
 		return err
 	}
 	if _, ok := temp[CURIES]; ok {
 		var mycuries []Curie
-		for _, curies := range temp[CURIES].([]interface{}) {
+		for _, curies := range temp[CURIES].([]any) {
 			var curie Curie
-			for k, v := range curies.(map[string]interface{}) {
+			for k, v := range curies.(map[string]any) {
 				switch k {
 				case NAME:
 					curie.Name = v.(string)
@@ -177,7 +177,7 @@ func (l *Links) UnmarshalJSON(b []byte) error {
 
 	var self Link
 	if _, ok := temp[SELF]; ok {
-		for k, v := range temp[SELF].(map[string]interface{}) {
+		for k, v := range temp[SELF].(map[string]any) {
 			switch k {
 			case HREF:
 				self.Href = v.(string)
@@ -190,9 +190,9 @@ func (l *Links) UnmarshalJSON(b []byte) error {
 	l.Relations = make(map[string][]*Link)
 	for rel, v := range temp {
 		var links []*Link
-		for _, properties := range v.([]interface{}) {
+		for _, properties := range v.([]any) {
 			var link Link
-			for key, property := range properties.(map[string]interface{}) {
+			for key, property := range properties.(map[string]any) {
 				switch key {
 				case HREF:
 					link.Href = property.(string)

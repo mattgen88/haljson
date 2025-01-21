@@ -8,16 +8,16 @@ import (
 )
 
 func TestResource(t *testing.T) {
-	r := NewResource()
-	assert.Equal(t, &Resource{Links: NewLinks(), Embeds: NewEmbeds(), Data: make(map[string]interface{})}, r, "Resource initialized incorrectly")
+	r := NewResource[any]()
+	assert.Equal(t, &Resource[any]{Links: NewLinks(), Embeds: NewEmbeds(), Data: make(map[string]any)}, r, "Resource initialized incorrectly")
 }
 
 func TestResourceMarshal(t *testing.T) {
-	r := NewResource()
+	r := NewResource[any]()
 	r.Self("/")
 	r.Data["bar"] = "baz"
 
-	rEmbed := NewResource()
+	rEmbed := NewResource[any]()
 	rEmbed.Self("/foo")
 
 	r.AddCurie(&Curie{Href: "/docs/bar/{rel}", Templated: true, Name: "bar"})
@@ -89,18 +89,18 @@ func TestResourceUnmarshal(t *testing.T) {
 	}
 }`
 
-	r := NewResource()
+	r := NewResource[any]()
 	r.Self("/")
 	r.Data["bar"] = "baz"
-	var foo = make(map[string]interface{})
+	var foo = make(map[string]any)
 	foo["lel"] = "lawl"
 	r.Data["foo"] = foo
-	rEmbed := NewResource()
+	rEmbed := NewResource[any]()
 	rEmbed.Self("/foo")
 	rEmbed.Data["test"] = "foo"
 	r.AddEmbed("foo", rEmbed)
 
-	var inflated Resource
+	var inflated Resource[any]
 	err := json.Unmarshal([]byte(marshaled), &inflated)
 	assert.Nil(t, err, "error in unmarshal")
 	assert.Equal(t, r.Data, inflated.Data, "data was not the same")
@@ -114,7 +114,7 @@ func TestResourceUnmarshal(t *testing.T) {
 }
 
 func TestResourceSelf(t *testing.T) {
-	r := NewResource()
+	r := NewResource[any]()
 	r.Self("/")
 
 	assert.Equal(t, &Link{Href: "/"}, r.Links.Self, "Link not set correctly")
