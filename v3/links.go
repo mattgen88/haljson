@@ -137,7 +137,7 @@ func (l *Links) MarshalJSON() ([]byte, error) {
 		bufferData = append(bufferData, fmt.Sprintf("\"%s\": %s", CURIES, string(jsonValue)))
 	}
 
-	// Sort keys for data
+	// Sort keys for deterministic output (required for consistent testing and comparison)
 	sortedKeys := make([]string, 0, len(l.Relations))
 	for k := range l.Relations {
 		sortedKeys = append(sortedKeys, k)
@@ -205,11 +205,40 @@ func (l *Links) UnmarshalJSON(b []byte) error {
 		if !ok {
 			return fmt.Errorf("invalid self link format: expected object")
 		}
+		// Handle all Link fields for consistency with regular link unmarshaling
 		for k, v := range selfMap {
 			switch k {
 			case HREF:
 				if href, ok := v.(string); ok {
 					self.Href = href
+				}
+			case DEPRECATION:
+				if deprecation, ok := v.(string); ok {
+					self.Deprecation = deprecation
+				}
+			case HREFLANG:
+				if hreflang, ok := v.(string); ok {
+					self.HrefLang = hreflang
+				}
+			case NAME:
+				if name, ok := v.(string); ok {
+					self.Name = name
+				}
+			case PROFILE:
+				if profile, ok := v.(string); ok {
+					self.Profile = profile
+				}
+			case TITLE:
+				if title, ok := v.(string); ok {
+					self.Title = title
+				}
+			case TYPE:
+				if typeval, ok := v.(string); ok {
+					self.Type = typeval
+				}
+			case TEMPLATED:
+				if templated, ok := v.(bool); ok {
+					self.Templated = templated
 				}
 			}
 		}

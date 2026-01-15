@@ -64,7 +64,7 @@ func (r *Resource[T]) MarshalJSON() ([]byte, error) {
 		embeds = &embedString
 	}
 
-	// Sort keys for data
+	// Sort keys for deterministic output (required for consistent testing and comparison)
 	sortedKeys := make([]string, 0, len(r.Data))
 	for k := range r.Data {
 		sortedKeys = append(sortedKeys, k)
@@ -104,7 +104,7 @@ func (r *Resource[T]) MarshalJSON() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-// UnmarshalJSON unmarshals embeds
+// UnmarshalJSON unmarshals a Resource from JSON
 func (r *Resource[T]) UnmarshalJSON(b []byte) error {
 	temp := make(map[string]any)
 	err := json.Unmarshal(b, &temp)
@@ -157,7 +157,10 @@ func (r *Resource[T]) UnmarshalJSON(b []byte) error {
 	}
 	delete(temp, CURIES)
 
-	// Whatever is left over shove into Data, converting from any to T
+	// Convert remaining data fields from any to T
+	// Note: Uses marshal/unmarshal for type conversion to ensure type safety.
+	// This provides robust handling of complex types at the cost of performance.
+	// For T=any, the marshal/unmarshal is overhead but maintains consistency.
 	r.Data = make(map[string]T)
 	for k, v := range temp {
 		data, err := json.Marshal(v)

@@ -208,3 +208,32 @@ func TestLinksAddLinkWithColonPrefix(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, links.Relations[":special"], 1)
 }
+
+func TestSelfLinkWithAllProperties(t *testing.T) {
+	// Test that self links can have all Link properties, not just href
+	jsonData := `{
+		"self": {
+			"href": "/api/users",
+			"title": "User List",
+			"type": "application/hal+json",
+			"deprecation": "http://deprecated.example.com",
+			"hreflang": "en-US",
+			"profile": "http://profile.example.com",
+			"templated": true,
+			"name": "user-list"
+		}
+	}`
+
+	var links Links
+	err := json.Unmarshal([]byte(jsonData), &links)
+	assert.Nil(t, err)
+	assert.NotNil(t, links.Self)
+	assert.Equal(t, "/api/users", links.Self.Href)
+	assert.Equal(t, "User List", links.Self.Title)
+	assert.Equal(t, "application/hal+json", links.Self.Type)
+	assert.Equal(t, "http://deprecated.example.com", links.Self.Deprecation)
+	assert.Equal(t, "en-US", links.Self.HrefLang)
+	assert.Equal(t, "http://profile.example.com", links.Self.Profile)
+	assert.True(t, links.Self.Templated)
+	assert.Equal(t, "user-list", links.Self.Name)
+}

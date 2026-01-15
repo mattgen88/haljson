@@ -126,10 +126,16 @@ func TestResourceWithTypedData(t *testing.T) {
 		Email string `json:"email"`
 	}
 
+	// Create resource with User as the data type
 	r := NewResource[User]()
 	r.Self("/users/123")
-	r.Data["user"] = User{Name: "John", Email: "john@example.com"}
+	
+	// When T is User, Data is map[string]User
+	// So we store User struct directly as the value
+	r.Data["profile"] = User{Name: "John", Email: "john@example.com"}
+	r.Data["settings"] = User{Name: "Admin", Email: "admin@example.com"}
 
+	// Marshal to JSON
 	b, err := json.Marshal(r)
 	assert.Nil(t, err)
 	assert.Contains(t, string(b), `"name":"John"`)
@@ -139,8 +145,13 @@ func TestResourceWithTypedData(t *testing.T) {
 	var r2 Resource[User]
 	err = json.Unmarshal(b, &r2)
 	assert.Nil(t, err)
-	assert.Equal(t, "John", r2.Data["user"].Name)
-	assert.Equal(t, "john@example.com", r2.Data["user"].Email)
+	
+	// Verify the data was properly typed as User structs
+	assert.Equal(t, "John", r2.Data["profile"].Name)
+	assert.Equal(t, "john@example.com", r2.Data["profile"].Email)
+	assert.Equal(t, "Admin", r2.Data["settings"].Name)
+	assert.Equal(t, "admin@example.com", r2.Data["settings"].Email)
+	assert.Equal(t, "/users/123", r2.Links.Self.Href)
 }
 
 func TestResourceUnmarshalErrors(t *testing.T) {
