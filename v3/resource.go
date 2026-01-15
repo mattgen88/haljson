@@ -106,7 +106,7 @@ func (r *Resource[T]) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON unmarshals embeds
 func (r *Resource[T]) UnmarshalJSON(b []byte) error {
-	temp := make(map[string]T)
+	temp := make(map[string]any)
 	err := json.Unmarshal(b, &temp)
 	if err != nil {
 		return err
@@ -157,8 +157,20 @@ func (r *Resource[T]) UnmarshalJSON(b []byte) error {
 	}
 	delete(temp, CURIES)
 
-	// Whatever is left over shove into Data
-	r.Data = temp
+	// Whatever is left over shove into Data, converting from any to T
+	r.Data = make(map[string]T)
+	for k, v := range temp {
+		data, err := json.Marshal(v)
+		if err != nil {
+			return err
+		}
+		var typedValue T
+		err = json.Unmarshal(data, &typedValue)
+		if err != nil {
+			return err
+		}
+		r.Data[k] = typedValue
+	}
 	return nil
 }
 

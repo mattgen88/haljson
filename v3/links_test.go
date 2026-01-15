@@ -122,3 +122,89 @@ func TestAddLinkBeforeCurie(t *testing.T) {
 	assert.NotNil(t, err2)
 	assert.Equal(t, err, err2, "Same errors for link before curie")
 }
+
+func TestLinkChainableMethods(t *testing.T) {
+	link := &Link{}
+
+	// Test chaining
+	result := link.
+		SetHref("/api/users").
+		SetTitle("User List").
+		SetDeprecation("http://deprecated.example.com").
+		SetHrefLang("en-US").
+		SetProfile("http://profile.example.com").
+		SetTemplated(true).
+		SetType("application/json").
+		SetName("user-list")
+
+	assert.Equal(t, "/api/users", link.Href)
+	assert.Equal(t, "User List", link.Title)
+	assert.Equal(t, "http://deprecated.example.com", link.Deprecation)
+	assert.Equal(t, "en-US", link.HrefLang)
+	assert.Equal(t, "http://profile.example.com", link.Profile)
+	assert.True(t, link.Templated)
+	assert.Equal(t, "application/json", link.Type)
+	assert.Equal(t, "user-list", link.Name)
+	assert.Equal(t, link, result, "methods should return same instance for chaining")
+}
+
+func TestLinkSetDeprication(t *testing.T) {
+	link := &Link{}
+	// Test deprecated method
+	link.SetDeprication("http://deprecated.example.com")
+	assert.Equal(t, "http://deprecated.example.com", link.Deprecation)
+}
+
+func TestLinksUnmarshalErrors(t *testing.T) {
+	// Test invalid curies format
+	invalidCuries := `{"curies": "not-an-array"}`
+	var links Links
+	err := json.Unmarshal([]byte(invalidCuries), &links)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "invalid curies format")
+
+	// Test invalid curie item format
+	invalidCurieItem := `{"curies": [123]}`
+	var links2 Links
+	err = json.Unmarshal([]byte(invalidCurieItem), &links2)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "invalid curie format")
+
+	// Test invalid self format
+	invalidSelf := `{"self": "not-an-object"}`
+	var links3 Links
+	err = json.Unmarshal([]byte(invalidSelf), &links3)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "invalid self link format")
+
+	// Test invalid relation links format
+	invalidRelation := `{"foo": "not-an-array"}`
+	var links4 Links
+	err = json.Unmarshal([]byte(invalidRelation), &links4)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "invalid links format")
+
+	// Test invalid link item format
+	invalidLinkItem := `{"foo": [123]}`
+	var links5 Links
+	err = json.Unmarshal([]byte(invalidLinkItem), &links5)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "invalid link format")
+}
+
+func TestLinksAddCurieWithNilCuries(t *testing.T) {
+	links := NewLinks()
+	links.Curies = nil
+	err := links.AddCurie(&Curie{Name: "test", Href: "/test"})
+	assert.Nil(t, err)
+	assert.NotNil(t, links.Curies)
+	assert.Len(t, links.Curies, 1)
+}
+
+func TestLinksAddLinkWithColonPrefix(t *testing.T) {
+	// Test that relation types starting with ":" don't trigger curie check
+	links := NewLinks()
+	err := links.AddLink(":special", &Link{Href: "/special"})
+	assert.Nil(t, err)
+	assert.Len(t, links.Relations[":special"], 1)
+}

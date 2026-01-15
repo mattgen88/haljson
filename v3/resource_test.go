@@ -119,3 +119,114 @@ func TestResourceSelf(t *testing.T) {
 
 	assert.Equal(t, &Link{Href: "/"}, r.Links.Self, "Link not set correctly")
 }
+
+func TestResourceWithTypedData(t *testing.T) {
+	type User struct {
+		Name  string `json:"name"`
+		Email string `json:"email"`
+	}
+
+	r := NewResource[User]()
+	r.Self("/users/123")
+	r.Data["user"] = User{Name: "John", Email: "john@example.com"}
+
+	b, err := json.Marshal(r)
+	assert.Nil(t, err)
+	assert.Contains(t, string(b), `"name":"John"`)
+	assert.Contains(t, string(b), `"email":"john@example.com"`)
+
+	// Test unmarshal with typed data
+	var r2 Resource[User]
+	err = json.Unmarshal(b, &r2)
+	assert.Nil(t, err)
+	assert.Equal(t, "John", r2.Data["user"].Name)
+	assert.Equal(t, "john@example.com", r2.Data["user"].Email)
+}
+
+func TestResourceUnmarshalErrors(t *testing.T) {
+	// Test with invalid JSON
+	var r Resource[any]
+	err := json.Unmarshal([]byte(`invalid json`), &r)
+	assert.NotNil(t, err)
+
+	// Test with data that can't be converted to type
+	type StrictType struct {
+		ID int `json:"id"`
+	}
+	invalidData := `{"field": "not-a-number"}`
+	var r2 Resource[StrictType]
+	err = json.Unmarshal([]byte(invalidData), &r2)
+	assert.NotNil(t, err)
+}
+
+func TestResourceMarshalWithNilLinks(t *testing.T) {
+	r := &Resource[any]{
+		Links:  nil,
+		Embeds: NewEmbeds(),
+		Data:   make(map[string]any),
+	}
+	r.Data["test"] = "value"
+
+	b, err := json.Marshal(r)
+	assert.Nil(t, err)
+	assert.Contains(t, string(b), `"test":"value"`)
+	assert.NotContains(t, string(b), `"_links"`)
+}
+
+func TestResourceMarshalWithEmptyLinks(t *testing.T) {
+	r := NewResource[any]()
+	r.Data["test"] = "value"
+
+	b, err := json.Marshal(r)
+	assert.Nil(t, err)
+	assert.Contains(t, string(b), `"test":"value"`)
+	// Empty links should not be marshaled
+	assert.NotContains(t, string(b), `"_links"`)
+}
+
+func TestResourceMarshalWithNilEmbeds(t *testing.T) {
+	r := &Resource[any]{
+		Links:  NewLinks(),
+		Embeds: nil,
+		Data:   make(map[string]any),
+	}
+	r.Links.Self = &Link{Href: "/"}
+	r.Data["test"] = "value"
+
+	b, err := json.Marshal(r)
+	assert.Nil(t, err)
+	assert.Contains(t, string(b), `"test":"value"`)
+	assert.NotContains(t, string(b), `"_embedded"`)
+}
+
+func TestResourceMarshalWithEmptyEmbeds(t *testing.T) {
+	r := NewResource[any]()
+	r.Self("/")
+	r.Data["test"] = "value"
+
+	b, err := json.Marshal(r)
+	assert.Nil(t, err)
+	assert.Contains(t, string(b), `"test":"value"`)
+	// Empty embeds should not be marshaled
+	assert.NotContains(t, string(b), `"_embedded"`)
+}
+
+func TestResourceUnmarshalWithCuries(t *testing.T) {
+	jsonData := `{
+		"_links": {
+			"self": {"href": "/"},
+			"curies": [
+				{"name": "doc", "href": "/docs/{rel}", "templated": true}
+			]
+		},
+		"test": "value"
+	}`
+
+	var r Resource[any]
+	err := json.Unmarshal([]byte(jsonData), &r)
+	assert.Nil(t, err)
+	assert.Equal(t, "/", r.Links.Self.Href)
+	assert.Len(t, r.Links.Curies, 1)
+	assert.Equal(t, "doc", r.Links.Curies[0].Name)
+	assert.Equal(t, "value", r.Data["test"])
+}
