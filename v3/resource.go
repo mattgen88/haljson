@@ -42,7 +42,6 @@ func (r *Resource[T]) AddCurie(curie *Curie) error {
 
 // MarshalJSON marshals a resource properly
 func (r *Resource[T]) MarshalJSON() ([]byte, error) {
-
 	// Marshal links
 	var links *string
 	if r.Links != nil && (len(r.Links.Relations) > 0 || r.Links.Self != nil) {
@@ -66,11 +65,9 @@ func (r *Resource[T]) MarshalJSON() ([]byte, error) {
 	}
 
 	// Sort keys for data
-	var sortedKeys = make([]string, len(r.Data))
-	i := 0
+	sortedKeys := make([]string, 0, len(r.Data))
 	for k := range r.Data {
-		sortedKeys[i] = k
-		i++
+		sortedKeys = append(sortedKeys, k)
 	}
 	sort.Strings(sortedKeys)
 
@@ -109,8 +106,7 @@ func (r *Resource[T]) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON unmarshals embeds
 func (r *Resource[T]) UnmarshalJSON(b []byte) error {
-	var temp map[string]T
-	temp = make(map[string]T)
+	temp := make(map[string]T)
 	err := json.Unmarshal(b, &temp)
 	if err != nil {
 		return err
@@ -120,11 +116,11 @@ func (r *Resource[T]) UnmarshalJSON(b []byte) error {
 
 	if _, ok := temp[EMBEDDED]; ok {
 		// re marshal embedded and links
-		embededjson, err := json.Marshal(temp[EMBEDDED])
+		embeddedjson, err := json.Marshal(temp[EMBEDDED])
 		if err != nil {
 			return err
 		}
-		err = json.Unmarshal(embededjson, &embedded)
+		err = json.Unmarshal(embeddedjson, &embedded)
 		if err != nil {
 			return err
 		}
@@ -148,7 +144,7 @@ func (r *Resource[T]) UnmarshalJSON(b []byte) error {
 	delete(temp, LINKS)
 
 	if _, ok := temp[CURIES]; ok {
-		var curies *[]Curie
+		var curies []Curie
 		curiesjson, err := json.Marshal(temp[CURIES])
 		if err != nil {
 			return err
@@ -164,14 +160,13 @@ func (r *Resource[T]) UnmarshalJSON(b []byte) error {
 	// Whatever is left over shove into Data
 	r.Data = temp
 	return nil
-
 }
 
 // NewResource creates a Resource and initializes it
 func NewResource[T any]() *Resource[T] {
-	r := &Resource[T]{}
-	r.Data = make(map[string]T)
-	r.Links = NewLinks()
-	r.Embeds = NewEmbeds()
-	return r
+	return &Resource[T]{
+		Data:   make(map[string]T),
+		Links:  NewLinks(),
+		Embeds: NewEmbeds(),
+	}
 }

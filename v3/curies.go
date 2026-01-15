@@ -1,6 +1,6 @@
 package haljson
 
-// Curie respresents a curie
+// Curie represents a curie
 type Curie struct {
 	Name      string `json:"name,omitempty"`
 	Href      string `json:"href,omitempty"`
