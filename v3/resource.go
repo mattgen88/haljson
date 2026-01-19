@@ -143,20 +143,6 @@ func (r *Resource[T]) UnmarshalJSON(b []byte) error {
 	r.Links = links
 	delete(temp, LINKS)
 
-	if _, ok := temp[CURIES]; ok {
-		var curies []Curie
-		curiesjson, err := json.Marshal(temp[CURIES])
-		if err != nil {
-			return err
-		}
-		err = json.Unmarshal(curiesjson, &curies)
-		if err != nil {
-			return err
-		}
-		r.Links.Curies = curies
-	}
-	delete(temp, CURIES)
-
 	// Convert remaining data fields from any to T
 	// Note: Uses marshal/unmarshal for type conversion to ensure type safety.
 	// This provides robust handling of complex types at the cost of performance.
