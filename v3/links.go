@@ -13,6 +13,7 @@ type Link struct {
 	Deprecation string `json:"deprecation,omitempty"`
 	Href        string `json:"href,omitempty"`
 	HrefLang    string `json:"hreflang,omitempty"`
+	Name        string `json:"name,omitempty"`
 	Profile     string `json:"profile,omitempty"`
 	Templated   bool   `json:"templated,omitempty"`
 	Title       string `json:"title,omitempty"`
@@ -21,8 +22,8 @@ type Link struct {
 
 // Links is a container of Link, mapped by relation, and contains Curies
 type Links struct {
-	Self   *Link    `json:"-"`
-	Curies *[]Curie `json:"curies,omitempty"`
+	Self   *Link   `json:"-"`
+	Curies []Curie `json:"curies,omitempty"`
 	// When serializing to JSON we need to handle this specially
 	Relations map[string][]*Link
 }
@@ -33,8 +34,8 @@ func (l *Link) SetTitle(title string) *Link {
 	return l
 }
 
-// SetDeprication sets deprecation, chainable
-func (l *Link) SetDeprication(deprecation string) *Link {
+// SetDeprecation sets deprecation, chainable
+func (l *Link) SetDeprecation(deprecation string) *Link {
 	l.Deprecation = deprecation
 	return l
 }
@@ -69,29 +70,35 @@ func (l *Link) SetType(linkType string) *Link {
 	return l
 }
 
+// SetName sets name, chainable
+func (l *Link) SetName(name string) *Link {
+	l.Name = name
+	return l
+}
+
 // AddCurie adds a curie to the links
 func (l *Links) AddCurie(curie *Curie) error {
 	if l.Curies == nil {
-		l.Curies = &[]Curie{}
+		l.Curies = []Curie{}
 	}
-	*l.Curies = append(*l.Curies, *curie)
+	l.Curies = append(l.Curies, *curie)
 	return nil
 }
 
 // AddLink adds a link to reltype
 func (l *Links) AddLink(reltype string, link *Link) error {
 	// Check if curied and that if curied, curie exists
-	curieExists := false
+	// Note: we check > 0 to exclude relation types starting with ":"
 	if strings.Index(reltype, ":") > 0 {
 		parts := strings.Split(reltype, ":")
-		var curies *[]Curie
-		curies = l.Curies
-		if curies == nil {
+		if l.Curies == nil {
 			return ErrNoCurie
 		}
-		for _, curie := range *curies {
+		curieExists := false
+		for _, curie := range l.Curies {
 			if parts[0] == curie.Name {
 				curieExists = true
+				break
 			}
 		}
 		if !curieExists {
@@ -108,7 +115,6 @@ func (l *Links) AddLink(reltype string, link *Link) error {
 
 // MarshalJSON to marshal Links properly
 func (l *Links) MarshalJSON() ([]byte, error) {
-	// @TODO sort keys
 	var bufferData []string
 	if l.Self != nil {
 		jsonValue, err := json.Marshal(l.Self)
@@ -117,7 +123,7 @@ func (l *Links) MarshalJSON() ([]byte, error) {
 		}
 		bufferData = append(bufferData, fmt.Sprintf("\"%s\": %s", SELF, string(jsonValue)))
 	}
-	if l.Curies != nil {
+	if l.Curies != nil && len(l.Curies) > 0 {
 		jsonValue, err := json.Marshal(l.Curies)
 		if err != nil {
 			return nil, err
@@ -125,12 +131,10 @@ func (l *Links) MarshalJSON() ([]byte, error) {
 		bufferData = append(bufferData, fmt.Sprintf("\"%s\": %s", CURIES, string(jsonValue)))
 	}
 
-	// Sort keys for data
-	var sortedKeys = make([]string, len(l.Relations))
-	i := 0
+	// Sort keys for deterministic output (required for consistent testing and comparison)
+	sortedKeys := make([]string, 0, len(l.Relations))
 	for k := range l.Relations {
-		sortedKeys[i] = k
-		i++
+		sortedKeys = append(sortedKeys, k)
 	}
 	sort.Strings(sortedKeys)
 
@@ -150,37 +154,86 @@ func (l *Links) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON to unmarshal links
 func (l *Links) UnmarshalJSON(b []byte) error {
-	var temp = make(map[string]interface{})
+	temp := make(map[string]any)
 	err := json.Unmarshal(b, &temp)
 	if err != nil {
 		return err
 	}
 	if _, ok := temp[CURIES]; ok {
 		var mycuries []Curie
-		for _, curies := range temp[CURIES].([]interface{}) {
+		curiesArray, ok := temp[CURIES].([]any)
+		if !ok {
+			return fmt.Errorf("invalid curies format: expected array")
+		}
+		for _, curiesItem := range curiesArray {
+			curiesMap, ok := curiesItem.(map[string]any)
+			if !ok {
+				return fmt.Errorf("invalid curie format: expected object")
+			}
 			var curie Curie
-			for k, v := range curies.(map[string]interface{}) {
+			for k, v := range curiesMap {
 				switch k {
 				case NAME:
-					curie.Name = v.(string)
+					if name, ok := v.(string); ok {
+						curie.Name = name
+					}
 				case HREF:
-					curie.Href = v.(string)
+					if href, ok := v.(string); ok {
+						curie.Href = href
+					}
 				case TEMPLATED:
-					curie.Templated = v.(bool)
+					if templated, ok := v.(bool); ok {
+						curie.Templated = templated
+					}
 				}
 			}
 			mycuries = append(mycuries, curie)
 		}
-		l.Curies = &mycuries
+		l.Curies = mycuries
 		delete(temp, CURIES)
 	}
 
 	var self Link
 	if _, ok := temp[SELF]; ok {
-		for k, v := range temp[SELF].(map[string]interface{}) {
+		selfMap, ok := temp[SELF].(map[string]any)
+		if !ok {
+			return fmt.Errorf("invalid self link format: expected object")
+		}
+		// Handle all Link fields for consistency with regular link unmarshaling
+		for k, v := range selfMap {
 			switch k {
 			case HREF:
-				self.Href = v.(string)
+				if href, ok := v.(string); ok {
+					self.Href = href
+				}
+			case DEPRECATION:
+				if deprecation, ok := v.(string); ok {
+					self.Deprecation = deprecation
+				}
+			case HREFLANG:
+				if hreflang, ok := v.(string); ok {
+					self.HrefLang = hreflang
+				}
+			case NAME:
+				if name, ok := v.(string); ok {
+					self.Name = name
+				}
+			case PROFILE:
+				if profile, ok := v.(string); ok {
+					self.Profile = profile
+				}
+			case TITLE:
+				if title, ok := v.(string); ok {
+					self.Title = title
+				}
+			case TYPE:
+				if typeval, ok := v.(string); ok {
+					self.Type = typeval
+				}
+			case TEMPLATED:
+				if templated, ok := v.(bool); ok {
+					self.Templated = templated
+				}
 			}
 		}
 		l.Self = &self
@@ -189,35 +242,51 @@ func (l *Links) UnmarshalJSON(b []byte) error {
 
 	l.Relations = make(map[string][]*Link)
 	for rel, v := range temp {
+		linksArray, ok := v.([]any)
+		if !ok {
+			return fmt.Errorf("invalid links format for relation %q: expected array", rel)
+		}
 		var links []*Link
-		for _, properties := range v.([]interface{}) {
+		for _, linkItem := range linksArray {
+			properties, ok := linkItem.(map[string]any)
+			if !ok {
+				return fmt.Errorf("invalid link format: expected object")
+			}
 			var link Link
-			for key, property := range properties.(map[string]interface{}) {
+			for key, property := range properties {
 				switch key {
 				case HREF:
-					link.Href = property.(string)
+					if href, ok := property.(string); ok {
+						link.Href = href
+					}
 				case DEPRECATION:
-					var deprecation string
-					deprecation = property.(string)
-					link.Deprecation = deprecation
+					if deprecation, ok := property.(string); ok {
+						link.Deprecation = deprecation
+					}
 				case HREFLANG:
-					var hreflang string
-					hreflang = property.(string)
-					link.HrefLang = hreflang
+					if hreflang, ok := property.(string); ok {
+						link.HrefLang = hreflang
+					}
+				case NAME:
+					if name, ok := property.(string); ok {
+						link.Name = name
+					}
 				case PROFILE:
-					var profile string
-					profile = property.(string)
-					link.Profile = profile
+					if profile, ok := property.(string); ok {
+						link.Profile = profile
+					}
 				case TITLE:
-					var title string
-					title = property.(string)
-					link.Title = title
+					if title, ok := property.(string); ok {
+						link.Title = title
+					}
 				case TYPE:
-					var typeval string
-					typeval = property.(string)
-					link.Type = typeval
+					if typeval, ok := property.(string); ok {
+						link.Type = typeval
+					}
 				case TEMPLATED:
-					link.Templated = property.(bool)
+					if templated, ok := property.(bool); ok {
+						link.Templated = templated
+					}
 				}
 			}
 			links = append(links, &link)
@@ -229,7 +298,7 @@ func (l *Links) UnmarshalJSON(b []byte) error {
 
 // NewLinks creates and initializes Links
 func NewLinks() *Links {
-	l := &Links{}
-	l.Relations = make(map[string][]*Link)
-	return l
+	return &Links{
+		Relations: make(map[string][]*Link),
+	}
 }
