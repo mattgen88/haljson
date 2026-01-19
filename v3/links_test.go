@@ -237,3 +237,39 @@ func TestSelfLinkWithAllProperties(t *testing.T) {
 	assert.True(t, links.Self.Templated)
 	assert.Equal(t, "user-list", links.Self.Name)
 }
+
+func TestLinksMarshalErrors(t *testing.T) {
+	// Note: Link marshaling errors are hard to trigger as Link struct only contains
+	// basic types (string, bool) which always marshal successfully.
+	// Testing that marshal works correctly with various combinations.
+	
+	links := NewLinks()
+	links.Self = &Link{Href: "/"}
+	links.Curies = []Curie{{Name: "doc", Href: "/docs/{rel}", Templated: true}}
+	links.Relations["test"] = []*Link{{Href: "/test"}}
+	
+	b, err := json.Marshal(links)
+	assert.Nil(t, err)
+	assert.Contains(t, string(b), `"self"`)
+	assert.Contains(t, string(b), `"curies"`)
+	assert.Contains(t, string(b), `"test"`)
+}
+
+func TestLinkNameInRelation(t *testing.T) {
+	// Test that link "name" property is properly unmarshaled in relation links
+	jsonData := `{
+		"items": [
+			{
+				"href": "/api/items",
+				"name": "item-link"
+			}
+		]
+	}`
+
+	var links Links
+	err := json.Unmarshal([]byte(jsonData), &links)
+	assert.Nil(t, err)
+	assert.Len(t, links.Relations["items"], 1)
+	assert.Equal(t, "/api/items", links.Relations["items"][0].Href)
+	assert.Equal(t, "item-link", links.Relations["items"][0].Name)
+}

@@ -47,3 +47,10 @@ func TestEmbedsUnmarshalJSON(t *testing.T) {
 	assert.Equal(t, "/foo", embeds.Relations["items"][0].Links.Self.Href)
 	assert.Equal(t, "test", embeds.Relations["items"][0].Data["name"])
 }
+
+func TestEmbedsUnmarshalErrors(t *testing.T) {
+	// Test with invalid JSON
+	var embeds Embeds
+	err := json.Unmarshal([]byte(`invalid json`), &embeds)
+	assert.NotNil(t, err)
+}

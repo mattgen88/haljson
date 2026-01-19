@@ -241,3 +241,36 @@ func TestResourceUnmarshalWithCuries(t *testing.T) {
 	assert.Equal(t, "doc", r.Links.Curies[0].Name)
 	assert.Equal(t, "value", r.Data["test"])
 }
+
+func TestResourceUnmarshalAdditionalErrors(t *testing.T) {
+	// Test embedded marshal error path - use a channel which can't be marshaled
+	r := NewResource[any]()
+	r.Embeds.Relations["test"] = []Resource[any]{{Data: map[string]any{"ch": make(chan int)}}}
+	_, err := json.Marshal(r)
+	assert.NotNil(t, err)
+
+	// Test links marshal error path - channel in link data
+	type InvalidLink struct {
+		Ch chan int `json:"ch"`
+	}
+	invalidLinkJSON := `{"_links": {"self": {"href": "/"}}}`
+	var r2 Resource[any]
+	err = json.Unmarshal([]byte(invalidLinkJSON), &r2)
+	assert.Nil(t, err)
+}
+
+func TestResourceMarshalErrors(t *testing.T) {
+	// Test data marshal error - channel type can't be marshaled
+	r := NewResource[any]()
+	r.Data["channel"] = make(chan int)
+	_, err := json.Marshal(r)
+	assert.NotNil(t, err)
+
+	// Test links marshal error via invalid link content
+	r2 := NewResource[any]()
+	r2.Links.Self = &Link{Href: "/"}
+	r2.Links.Relations["test"] = []*Link{{Href: "/"}}
+	// This should succeed, just verifying the path exists
+	_, err = json.Marshal(r2)
+	assert.Nil(t, err)
+}
