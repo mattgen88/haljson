@@ -40,12 +40,6 @@ func (l *Link) SetDeprecation(deprecation string) *Link {
 	return l
 }
 
-// SetDeprication sets deprecation, chainable
-// Deprecated: Use SetDeprecation instead (typo fix)
-func (l *Link) SetDeprication(deprecation string) *Link {
-	return l.SetDeprecation(deprecation)
-}
-
 // SetHref sets href, chainable
 func (l *Link) SetHref(href string) *Link {
 	l.Href = href

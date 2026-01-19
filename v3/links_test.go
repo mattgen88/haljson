@@ -148,13 +148,6 @@ func TestLinkChainableMethods(t *testing.T) {
 	assert.Equal(t, link, result, "methods should return same instance for chaining")
 }
 
-func TestLinkSetDeprication(t *testing.T) {
-	link := &Link{}
-	// Test deprecated method
-	link.SetDeprication("http://deprecated.example.com")
-	assert.Equal(t, "http://deprecated.example.com", link.Deprecation)
-}
-
 func TestLinksUnmarshalErrors(t *testing.T) {
 	// Test invalid curies format
 	invalidCuries := `{"curies": "not-an-array"}`
